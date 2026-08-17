@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and fill in the values.
+# Do NOT commit terraform.tfvars — it contains secrets.
+
+container_image        = "ghcr.io/yourusername/the-offhand:latest"
+neon_connection_string = "postgresql://user:pass@ep-xxx.neon.tech/dbname?sslmode=require"
+payload_secret         = "replace-with-a-random-string"
+nextauth_url           = "https://the-offhand.com"
+nextauth_secret        = "replace-with-a-random-string"
+
+# Only required if your GHCR image is in a private repository:
+# ghcr_username = "your-github-username"
+# ghcr_token    = "ghp_xxxxxxxxxxxxxxxxxxxx"
