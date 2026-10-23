@@ -12,5 +12,5 @@ terraform {
 provider "azurerm" {
   features {}
 
-  resource_providers_to_register = ["Microsoft.App"]
+  resource_providers_to_register = ["Microsoft.App", "Microsoft.Web"]
 }

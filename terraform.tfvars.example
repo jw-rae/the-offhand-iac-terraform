@@ -4,9 +4,12 @@
 container_image        = "ghcr.io/yourusername/the-offhand:latest"
 neon_connection_string = "postgresql://user:pass@ep-xxx.neon.tech/dbname?sslmode=require"
 payload_secret         = "replace-with-a-random-string"
-nextauth_url           = "https://the-offhand.com"
+nextauth_url           = "https://www.theoffhand.com"
 nextauth_secret        = "replace-with-a-random-string"
 
-# Only required if your GHCR image is in a private repository:
+# Only required if your GHCR image is in a private repository. For a private
+# image set ghcr_enabled to true AND provide credentials, otherwise the
+# container app cannot pull on cold start:
+# ghcr_enabled  = true
 # ghcr_username = "your-github-username"
 # ghcr_token    = "ghp_xxxxxxxxxxxxxxxxxxxx"

@@ -2,8 +2,8 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
 .terraform/
-.terraform.lock.hcl
 crash.log
 crash.*.log
 override.tf
@@ -14,7 +14,8 @@ override.tf.json
 terraform.rc
 
 # Secrets
-terraform.tfvars
+*.tfvars
+*.tfvars.json
 
 # OS
 .DS_Store

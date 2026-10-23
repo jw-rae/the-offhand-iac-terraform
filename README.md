@@ -1,26 +1,41 @@
 # the-offhand — Terraform Infrastructure
 
-Azure Container Apps deployment for **the-offhand** (Next.js + Payload CMS on Neon PostgreSQL).
+Terraform manages the Azure infrastructure for **the-offhand**:
+
+- Azure Resource Group
+- Azure Container Apps Environment
+- Azure Container App (Next.js + Payload CMS)
+- Azure Storage Account and media container
+
+The Container App serves the site on `theoffhand.com` and `www.theoffhand.com`.
+It uses Neon PostgreSQL for the database and Azure Blob Storage for media.
 
 ## Architecture
 
 ```
-Namecheap (DNS configured manually)
-    │
-    ▼
-Azure Container Apps  ──►  Next.js + Payload CMS  ──►  Neon PostgreSQL
-                              │
-                              ▼
-                        Azure Blob Storage
-                         (media container)
+Namecheap DNS
+    ├── theoffhand.com ──────┐
+    └── www.theoffhand.com ──┴──► Azure Container App
+                                      ├── Next.js + Payload CMS
+                                      ├── Neon PostgreSQL
+                                      └── Azure Blob Storage
+
+GitHub Actions (the-offhand-app/ci.yml)
+    └── builds an image, pushes it to GHCR, deploys it to the Container App
 ```
+
+Custom domains and their managed certificates are configured on the Container
+App in Azure. Terraform intentionally ignores changes to the Container App's
+image, replica counts, and custom-domain bindings: the app pipeline manages
+image deployments, replicas are adjusted separately, and the existing domains
+are retained in Azure.
 
 ## Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) authenticated (`az login`)
-- A GHCR image pushed (e.g. `ghcr.io/yourusername/the-offhand:latest`)
-- Neon PostgreSQL database provisioned manually
+- A GHCR image pushed by the app repository's CI workflow
+- Neon PostgreSQL database provisioned separately
 
 ## Azure Authentication
 
@@ -43,11 +58,6 @@ export ARM_TENANT_ID="<tenant-id>"
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your values
-```
-
-## Commands
-
-```bash
 terraform init
 terraform plan
 terraform apply
@@ -57,11 +67,12 @@ terraform apply
 
 | Variable | Description | Sensitive | Required |
 |---|---|---|---|
-| `container_image` | GHCR image URL (e.g. `ghcr.io/user/repo:tag`) | No | Yes |
+| `container_image` | Initial GHCR image URL | No | Yes |
 | `neon_connection_string` | Neon PostgreSQL connection string | Yes | Yes |
 | `payload_secret` | Payload CMS secret | Yes | Yes |
-| `nextauth_url` | Public site URL (e.g. `https://the-offhand.com`) | No | Yes |
+| `nextauth_url` | Public app URL (e.g. `https://www.theoffhand.com`) | No | Yes |
 | `nextauth_secret` | NextAuth secret | Yes | Yes |
+| `ghcr_enabled` | Enable GHCR registry auth for a private image | No | No |
 | `ghcr_username` | GitHub username for private GHCR images | No | No |
 | `ghcr_token` | GitHub PAT with `read:packages` scope | Yes | No |
 | `location` | Azure region (default: `westeurope`) | No | No |
@@ -70,42 +81,29 @@ terraform apply
 
 | Output | Description |
 |---|---|
-| `resource_group_name` | Azure resource group name |
+| `resource_group_name` | Resource group name |
 | `container_app_environment_name` | Container Apps environment name |
 | `container_app_name` | Container App name |
-| `container_app_latest_revision_name` | Latest revision name |
-| `container_app_fqdn` | FQDN for DNS CNAME configuration |
+| `container_app_fqdn` | Default Container App FQDN |
 
-## Secrets
+## Container App secrets
 
-Secrets are stored as Container App secrets (never committed to git):
+Terraform configures these secrets on the Container App:
 
 | Secret | Description |
 |---|---|
 | `neon-connection-string` | Neon PostgreSQL connection string |
 | `payload-secret` | Payload CMS secret |
 | `nextauth-secret` | NextAuth secret |
-| `s3-access-key` | Azure Storage access key (used for both S3_ACCESS_KEY and S3_SECRET_KEY) |
+| `azure-storage-connection-string` | Azure Storage connection string |
+| `ghcr-token` | Added only when private GHCR authentication is enabled |
 
-If your GHCR image is private, a fifth secret `ghcr-token` is also created.
+## CI/CD
 
-## DNS (Namecheap)
-
-After `terraform apply`, configure Namecheap DNS:
-
-1. Go to Namecheap **Domain List** → **Manage** → **Advanced DNS**
-2. Add a **CNAME record**: `www` → `<container_app_fqdn>` from Terraform output
-3. Or add **A records** pointing to the Container App IP addresses
-
-## Cost Estimate
-
-| Resource | Spec | Approx. Cost |
-|---|---|---|
-| Container App (Consumption) | 0.25 vCPU / 0.5 GiB, 0-1 replicas | ~$0-5/mo |
-| Container Apps Environment | Consumption only | Free tier |
-| Blob Storage | Standard LRS, pay-per-use | ~$0-1/mo |
-
-Total: **under $5/month** for a low-traffic personal site. Scales to zero when idle.
+The app repository's `ci.yml` workflow builds the CMS image, pushes it to GHCR,
+and deploys the commit-tagged image to the Container App. Terraform provisions
+the app but ignores later image changes so it does not roll back pipeline
+deployments.
 
 ## Destroy
 
@@ -113,4 +111,5 @@ Total: **under $5/month** for a low-traffic personal site. Scales to zero when i
 terraform destroy
 ```
 
-This removes all Azure resources. Neon and Namecheap are managed separately.
+This removes Azure resources managed by Terraform. Neon, GitHub, and Namecheap
+are managed separately.

@@ -15,6 +15,12 @@ variable "container_image" {
   type        = string
 }
 
+variable "ghcr_enabled" {
+  description = "Set to true to use GHCR registry authentication (private image)"
+  type        = bool
+  default     = false
+}
+
 variable "ghcr_username" {
   description = "GitHub username for GHCR authentication (only needed for private images)"
   type        = string
@@ -41,7 +47,7 @@ variable "payload_secret" {
 }
 
 variable "nextauth_url" {
-  description = "Public URL of the site (e.g. https://the-offhand.com)"
+  description = "Public URL of the app (e.g. https://www.theoffhand.com)"
   type        = string
 }
 

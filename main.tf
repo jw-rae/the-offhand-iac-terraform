@@ -16,8 +16,8 @@ resource "azurerm_storage_account" "media" {
 
 resource "azurerm_storage_container" "media" {
   name                  = "media"
-  storage_account_name  = azurerm_storage_account.media.name
-  container_access_type = "private"
+  storage_account_id    = azurerm_storage_account.media.id
+  container_access_type = "blob"
 }
 
 resource "azurerm_container_app_environment" "main" {
@@ -33,6 +33,14 @@ resource "azurerm_container_app" "main" {
   resource_group_name          = azurerm_resource_group.main.name
   revision_mode                = "Single"
   tags                         = var.tags
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+      template[0].min_replicas,
+      template[0].max_replicas,
+    ]
+  }
 
   secret {
     name  = "neon-connection-string"
@@ -50,12 +58,12 @@ resource "azurerm_container_app" "main" {
   }
 
   secret {
-    name  = "s3-access-key"
-    value = azurerm_storage_account.media.primary_access_key
+    name  = "azure-storage-connection-string"
+    value = azurerm_storage_account.media.primary_connection_string
   }
 
   dynamic "secret" {
-    for_each = var.ghcr_token != "" ? [1] : []
+    for_each = var.ghcr_enabled ? { enabled = "1" } : {}
     content {
       name  = "ghcr-token"
       value = var.ghcr_token
@@ -63,7 +71,7 @@ resource "azurerm_container_app" "main" {
   }
 
   dynamic "registry" {
-    for_each = var.ghcr_token != "" ? [1] : []
+    for_each = var.ghcr_enabled ? { enabled = "1" } : {}
     content {
       server               = "ghcr.io"
       username             = var.ghcr_username
@@ -74,6 +82,11 @@ resource "azurerm_container_app" "main" {
   template {
     min_replicas = 0
     max_replicas = 1
+
+    http_scale_rule {
+      name                = "http-scaler"
+      concurrent_requests = "10"
+    }
 
     container {
       name   = "the-offhand"
@@ -117,35 +130,19 @@ resource "azurerm_container_app" "main" {
       }
 
       env {
-        name  = "S3_ENDPOINT"
+        name  = "AZURE_STORAGE_BASE_URL"
         value = "https://${azurerm_storage_account.media.name}.blob.core.windows.net"
       }
 
       env {
-        name  = "S3_BUCKET"
+        name  = "AZURE_STORAGE_CONTAINER_NAME"
         value = azurerm_storage_container.media.name
       }
 
       env {
-        name        = "S3_ACCESS_KEY"
-        secret_name = "s3-access-key"
+        name        = "AZURE_STORAGE_CONNECTION_STRING"
+        secret_name = "azure-storage-connection-string"
       }
-
-      env {
-        name        = "S3_SECRET_KEY"
-        secret_name = "s3-access-key"
-      }
-
-      volume_mounts {
-        name = "tmp"
-        path = "/tmp"
-      }
-    }
-
-    volume {
-      name         = "tmp"
-      storage_type = "EmptyDir"
-      storage_name = "tmp"
     }
   }
 

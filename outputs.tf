@@ -13,12 +13,7 @@ output "container_app_name" {
   value       = azurerm_container_app.main.name
 }
 
-output "container_app_latest_revision_name" {
-  description = "Latest revision name of the Container App"
-  value       = azurerm_container_app.main.latest_revision_name
-}
-
 output "container_app_fqdn" {
-  description = "Fully qualified domain name of the Container App (use for DNS CNAME)"
-  value       = azurerm_container_app.main.latest_revision_fqdn
+  description = "Container App FQDN (target for the app's custom-domain CNAME records)"
+  value       = "${azurerm_container_app.main.name}.${azurerm_container_app_environment.main.default_domain}"
 }
